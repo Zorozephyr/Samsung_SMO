@@ -1,0 +1,57 @@
+apiVersion: apiextensions.k8s.io/v1 # The API version for defining Custom Resources (this is the built-in K8s API for CRDs)
+kind: CustomResourceDefinition   # The type of resource we are creating. We are telling K8s "I want to teach you a new Word/Resource"
+metadata:
+  name: websites.example.com     # The unique name of the CRD. MUST be in the format <plural>.<group>
+spec:
+  group: example.com             # The API group your resource belongs to (like 'apps' for Deployments). Used in the URL: /apis/example.com/v1/...
+  names:                         # Defines how users and kubectl will refer to this resource
+    plural: websites             # The plural name (used in URL and kubectl get websites)
+    singular: website            # The singular name (kubectl get website)
+    kind: Website                # The CamelCase Kind name (used in YAML files: kind: Website)
+    shortNames:                  # Short aliases for CLI convenience
+      - ws                       # Allows typing 'kubectl get ws' instead of 'websites'
+  scope: Namespaced              # Scope of the resource. 'Namespaced' means it lives in a namespace (like Pods). 'Cluster' means it's global (like Nodes).
+  versions:                      # List of API versions supported by this CRD
+    - name: v1                   # The version name (e.g., v1, v1beta1, v2)
+      served: true               # Whether this version is enabled and available via the API server
+      storage: true              # Whether this version is the one stored in etcd (Only one version can be the storage version)
+      schema:                    # The validation schema. Defines what fields are allowed in the YAML
+        openAPIV3Schema:         # K8s handles validation using OpenAPI v3 schemas
+          type: object           # The root of the YAML must be an object/dictionary
+          properties:            # List of allowed fields
+            spec:                # The 'spec' field: Desired State (What the user wants)
+              type: object
+              required:          # Fields that MUST be present in the user's YAML
+                - url
+                - replicas
+              properties:        # Properties inside 'spec'
+                url:
+                  type: string   # Data type (string, integer, boolean, etc.)
+                  pattern: '^https://' # Regex validation: URL must start with https://
+                  description: The website url # Help text for `kubectl explain`
+                replicas:
+                  type: integer
+                  minimum: 1     # Validation: Cannot carry less than 1
+                  maximum: 10    # Validation: Cannot carry more than 10
+                  description: The number of replicas
+                environment:
+                  type: string
+                  enum:          # Enumeration: Value MUST be one of these strings
+                    - development
+                    - staging
+                    - production
+                  description: The environment
+                  default: development # If the user doesn't provide this, use 'development'
+            status:              # The 'status' field: Actual State (What is happening right now). Updated by the Controller/Operator.
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Running, Failed] # The lifecycle state of the resource
+                  description: The phase of the website
+                readyReplicas:
+                  type: integer  # How many replicas are actually running and healthy
+                lastUpdated:
+                  type: string
+                  format: date-time # Special format validation for timestamps
+                  description: The last updated time of the website
