@@ -50,3 +50,11 @@ C. The "Managed" (Cloud)
 Examples: EKS (AWS), AKS (Azure), GKE (Google).
 
 Setup: You don't even see the Master nodes. The cloud provider manages the "Brain" for you completely. You only pay for the "Worker" computers that run your specific apps.
+
+k3d cluster list
+k3d cluster start clusterName
+k3d cluster delete clusterName
+k3d cluster create --config cluster.yaml
+
+kubectk cluster-info
+docker ps
