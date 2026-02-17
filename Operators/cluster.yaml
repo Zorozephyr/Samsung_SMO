@@ -2,6 +2,18 @@ apiVersion: k3d.io/v1alpha5
 kind: Simple
 metadata:
   name: ec2Operator
+image: rancher/k3s:v1.30.0-k3s1 # Ensure this version is available
 servers: 1
 agents: 2
-image: rancher/k3s:v1.33.3-k3s1
+# In v1alpha5, use kubeAPI at the top level
+kubeAPI:
+  hostPort: "6443"
+options:
+  k3s:
+    extraArgs:
+      - arg: "--tls-san=127.0.0.1"
+        nodeFilters:
+          - server:0
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true # Fixed name: added 'Current'
