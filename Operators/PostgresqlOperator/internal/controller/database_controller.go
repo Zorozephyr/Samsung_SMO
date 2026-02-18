@@ -145,12 +145,19 @@ func (r *DatabaseReconciler) reconcileStatefulSet(ctx context.Context, db *datab
 		return err
 	}
 
+	if *statefulSet.Spec.Replicas != *desiredStatefulSet.Spec.Replicas {
+		logger.Info("Updating replicas via patch")
+		return r.patchStatefulSetReplicas(ctx, statefulSet, *desiredStatefulSet.Spec.Replicas)
+	}
+
 	// Update if needed
 	if statefulSet.Spec.Replicas != desiredStatefulSet.Spec.Replicas ||
 		statefulSet.Spec.Template.Spec.Containers[0].Image != desiredStatefulSet.Spec.Template.Spec.Containers[0].Image {
 		statefulSet.Spec = desiredStatefulSet.Spec
 		logger.Info("Updating StatefulSet", "name", statefulSet.Name)
-		return r.Update(ctx, statefulSet)
+		if err := r.updateWithRetry(ctx, statefulSet, 3); err != nil {
+			return err
+		}
 	}
 
 	return nil

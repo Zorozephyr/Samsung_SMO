@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	databasev1 "github.com/example/postgres-operator/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +41,10 @@ func (r *DatabaseReconciler) buildStatefulSet(db *databasev1.Database) *appsv1.S
 					"app":      "database",
 					"database": db.Name,
 				},
+			},
+			PersistentVolumeClaimRetentionPolicy: &appsv1.StatefulSetPersistentVolumeClaimRetentionPolicy{
+				WhenDeleted: appsv1.DeletePersistentVolumeClaimRetentionPolicyType,
+				WhenScaled:  appsv1.RetainPersistentVolumeClaimRetentionPolicyType,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -164,4 +170,23 @@ func (r *DatabaseReconciler) patchStatefulSetReplicas(ctx context.Context, state
 	patch := client.MergeFrom(statefulSet.DeepCopy())
 	statefulSet.Spec.Replicas = &replicas
 	return r.Patch(ctx, statefulSet, patch)
+}
+
+func (r *DatabaseReconciler) updateWithRetry(ctx context.Context, obj client.Object, maxRetries int) error {
+	for i := 0; i < maxRetries; i++ {
+		err := r.Update(ctx, obj)
+		if err == nil {
+			return nil
+		}
+		if !errors.IsConflict(err) {
+			return err
+		}
+
+		key := client.ObjectKeyFromObject(obj)
+		if err := r.Get(ctx, key, obj); err != nil {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("max retries exceeded")
 }
