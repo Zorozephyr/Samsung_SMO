@@ -101,3 +101,89 @@ Replicas int32 `json:"replicas"`
 
 // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 Name string `json:"name"`
+
+
+Working With Client-Go:
+Client-Go provides low level access to kubernetes APIs, while controller runtime builds on it for higher abstractions
+
+In Get, list etc, u have to give an empty object that can be mutated
+"""
+// List all StatefulSets in namespace
+statefulSetList := &appsv1.StatefulSetList{}
+err := r.List(ctx, statefulSetList, client.InNamespace("default"))
+
+// Filter by labels
+err := r.List(ctx, statefulSetList, 
+    client.InNamespace("default"),
+    client.MatchingLabels{"app": "database"})
+"""
+
+Patch Strategies:
+graph TB
+    PATCH[Patch Operation]
+    
+    PATCH --> MERGE[Merge Patch]
+    PATCH --> STRATEGIC[Strategic Merge]
+    PATCH --> JSON[JSON Patch]
+    
+    MERGE --> SIMPLE[Simple merge]
+    STRATEGIC --> K8S[Kubernetes aware]
+    JSON --> PRECISE[Precise control]
+    
+    style STRATEGIC fill:#90EE90
+
+Strategic Merge Patch:
+patch:= client.MergeFrom(statefulSet.DeepCopy())
+statefulSet.Spec.Replicas = &newReplicas
+err:=r.Patch(ctx, statefulSet, patch)
+
+Json Patch:
+patch := []byte(`[
+    {"op": "replace", "path": "/spec/replicas", "value": 3}
+]`)
+
+err := r.Patch(ctx, statefulSet, client.RawPatch(types.JSONPatchType, patch))
+
+sequenceDiagram
+    participant Controller
+    participant Watch as Watch Interface
+    participant API as API Server
+    
+    Controller->>Watch: Start Watch
+    Watch->>API: Watch Request
+    API->>Watch: Event Stream
+    Watch->>Controller: Event (ADD/UPDATE/DELETE)
+    Controller->>Controller: Handle Event
+
+
+The informer and watch are the 2 components that allow your operator to react to changes in real-time without constantly polling the Api Server
+The watch is a low level HTTP connection to KubernetesAPI serverHow it works: When you start a Watch, the API server doesn't close the connection after sending data. Instead, it keeps the pipe open.
+
+The Stream: Every time an object (like a Pod or your Database CR) is Created, Updated, or Deleted, the API server sends a small piece of JSON down that pipe.
+
+The Catch: Watches are "fragile." If the network blips or the API server restarts, the connection breaks. You then have to figure out where you left off.
+
+Informer is a high level tool that wraps the Watch...if connection drops the Reflector automatically reconnects and asks API server, what did i miss since version X. Informer also has the local cache.When you run r.Get() in your reconciler, you aren't actually calling the API server over the internet; you are reading from this local memory. This is why reads in Kubernetes are so fast.The Indexer organizes the cache so you can quickly fnd objects by name, namespace or even custom labels
+
+
+"""
+func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+return ctrl.NewControllerManagedBy(mgr).
+
+For(&databasev1.Database{}).
+
+Owns(&appsv1.StatefulSet{}). // Watch owned StatefulSets
+
+Watches(
+
+&source.Kind{Type: &corev1.Secret{}},
+
+&handler.EnqueueRequestForObject{},
+
+).
+
+Complete(r)
+
+}
+"""
