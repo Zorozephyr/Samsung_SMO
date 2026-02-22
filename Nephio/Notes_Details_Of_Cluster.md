@@ -26,7 +26,7 @@ Ubuntu Server 24.04 LTS - Gen2
 VM architecture
 x64
 Size
-Standard D2s v3 (2 vcpus, 8 GiB memory)
+Standard E4as v4 (4 vcpus, 32 GiB memory)
 Enable Hibernation
 No
 Authentication type
@@ -40,14 +40,12 @@ Nephio_key
 Public inbound ports
 SSH
 Azure Spot
-Yes (Stop / Deallocate)
-Azure Spot max price
--
+No
 Disks
 OS disk size
 256 GiB
 OS disk type
-Standard HDD LRS
+Standard SSD LRS
 Use managed disks
 Yes
 Delete OS disk with VM
@@ -62,7 +60,7 @@ snet-centralindia-1
 Public IP
 (new) Nephio-ip
 Accelerated networking
-Off
+On
 Place this virtual machine behind an existing load balancing solution?
 No
 Delete public IP and NIC when VM is deleted
