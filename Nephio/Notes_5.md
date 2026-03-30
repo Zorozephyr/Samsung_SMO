@@ -59,3 +59,13 @@ But the Network Function (the App itself, like a DU) connects to the SMO via O1.
 Why doesn't the App just talk to the O-Cloud directly? Or why doesn't the O2 interface handle the App configuration?
 
 O1 is mainly for business logic, while O2 is for technical logic. O2 knows and sets up the technical details of the App, while O1 handles the business logic and policies.
+
+When the system looks inside /etc/netplan/, it reads every file ending in .yaml. If two different files try to configure the same network interface, the one that is read last wins.
+
+Think of it like a stack of transparent slides:
+01-netcfg.yaml: Sets the base rules.
+50-cloud-init.yaml: Overlays default cloud settings.
+99-custom-routes.yaml: Overlays your specific changes on top of everything else.
+sudo bash -c will start a new bash shell with root privileges. -c runs the command
+
+
